@@ -12,6 +12,18 @@ import sys
 from collections import deque
 
 STATE_PATH = '/etc/quiet-edge/state.json'
+CONFIG_PATH = '/etc/quiet-edge/config.json'
+
+def get_target_temps():
+    targets = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, 'r') as f:
+                config = json.load(f)
+                targets = config.get('target_temps', {})
+        except:
+            pass
+    return targets
 
 def get_state_data():
     temps = {'cpu': 0, 'gpu': 0, 'drive': 0, 'drive_details': {}}
@@ -38,23 +50,25 @@ def get_state_data():
             
     return temps, fan_pct, rpm_str
 
-def draw_graph(win, title, history, height, width, color, details_str=""):
+def draw_graph(win, title, history, height, width, color, details_str="", target_val=None):
     win.erase()
     win.box()
     
     curr_val = history[-1] if history else 0
+    target_str = f" | Target: {target_val}C" if target_val else ""
+    
     if details_str:
         if "Drive" in title:
-            header_text = f" {title} | Max: {curr_val}C {details_str} "
+            header_text = f" {title} | Max: {curr_val}C {details_str}{target_str} "
         elif "Fan" in title:
             header_text = f" {title} | Current: {curr_val}% {details_str} "
         else:
-            header_text = f" {title} | Current: {curr_val} {details_str} "
+            header_text = f" {title} | Current: {curr_val} {details_str}{target_str} "
     else:
         if "Fan" in title:
             header_text = f" {title} | Current: {curr_val}% "
         else:
-            header_text = f" {title} | Current: {curr_val}C "
+            header_text = f" {title} | Current: {curr_val}C{target_str} "
         
     if len(header_text) > width - 4:
         header_text = header_text[:width - 7] + "... "
@@ -69,7 +83,10 @@ def draw_graph(win, title, history, height, width, color, details_str=""):
         return
 
     max_val = 100
-    if history: max_val = max(100, max(history))
+    if history:
+        max_val = max(100, max(history))
+        if target_val:
+            max_val = max(max_val, target_val)
 
     inner_h = height - 2
     inner_w = width - 2
@@ -80,6 +97,18 @@ def draw_graph(win, title, history, height, width, color, details_str=""):
         win.addstr(inner_h, 1, "0")
     except curses.error:
         pass
+
+    # Draw Target Line
+    if target_val:
+        target_bars = int((target_val / max_val) * inner_h)
+        if target_bars > 0:
+            target_row = height - 1 - target_bars
+            if 0 < target_row < height - 1:
+                for col in range(5, width - 1):
+                    try:
+                        win.addstr(target_row, col, "-", curses.A_DIM)
+                    except curses.error:
+                        pass
 
     data = list(history)[-inner_w+4:] # Leave room for labels
     
@@ -92,66 +121,6 @@ def draw_graph(win, title, history, height, width, color, details_str=""):
             if row > 0 and row < height and col > 0 and col < width:
                 try:
                     win.addstr(row, col, "█", color)
-                except curses.error:
-                    pass
-
-    win.noutrefresh()
-
-def draw_multi_graph(win, title, histories_dict, height, width):
-    win.erase()
-    win.box()
-    if not histories_dict:
-        win.noutrefresh()
-        return
-
-    legend_parts = []
-    symbols = ['*', 'o', '+', 'x', '.', '~', '-', '^']
-    color_keys = [4, 2, 1, 3, 5, 6, 7] # 5 is magenta, 6 is cyan, etc. 
-    
-    for idx, (k, v) in enumerate(histories_dict.items()):
-        if v:
-            sym = symbols[idx % len(symbols)]
-            legend_parts.append(f"{sym} {k}: {v[-1]}C")
-            
-    legend = " | ".join(legend_parts)
-    header_text = f" Drives Multi-Temp | {legend} "
-    
-    if len(header_text) > width - 4:
-        header_text = header_text[:width - 7] + "... "
-        
-    try:
-        win.addstr(0, 2, header_text)
-    except curses.error:
-        pass
-
-    max_val = 100
-    all_vals = [val for hist in histories_dict.values() for val in hist]
-    if all_vals:
-        max_val = max(100, max(all_vals))
-
-    inner_h = height - 2
-    inner_w = width - 2
-
-    try:
-        win.addstr(1, 1, f"{max_val}")
-        win.addstr(inner_h, 1, "0")
-    except curses.error:
-        pass
-
-    for drive_idx, (drive_name, history) in enumerate(histories_dict.items()):
-        symbol = symbols[drive_idx % len(symbols)]
-        col_color = curses.color_pair(color_keys[drive_idx % len(color_keys)])
-        
-        data = list(history)[-inner_w+4:]
-        for i, val in enumerate(data):
-            col = width - len(data) + i - 1
-            if col < 5: continue
-            
-            # map row
-            row = height - 2 - int((val / max_val) * (inner_h - 1))
-            if 0 < row < height - 1 and 0 < col < width - 1:
-                try:
-                    win.addstr(row, col, symbol, col_color)
                 except curses.error:
                     pass
 
@@ -170,13 +139,14 @@ def main(stdscr):
     
     history_cpu = deque(maxlen=300)
     history_gpu = deque(maxlen=300)
-    history_drive_details = {}
+    history_drive = deque(maxlen=300)
     history_fan = deque(maxlen=300)
 
     last_poll = 0
     last_y, last_x = 0, 0
     force_redraw = True
     last_fan_details_str = ""
+    target_temps = {}
     
     while True:
         c = stdscr.getch()
@@ -195,16 +165,18 @@ def main(stdscr):
         if now - last_poll >= 2.0 or force_redraw:
             if now - last_poll >= 2.0:
                 temps, fan_pct, fan_rpms = get_state_data()
+                target_temps = get_target_temps()
                 
                 history_cpu.append(temps.get('cpu', 0))
                 history_gpu.append(temps.get('gpu', 0))
                 history_fan.append(fan_pct)
                 
                 details = temps.get('drive_details', {})
-                for k, v in details.items():
-                    if k not in history_drive_details:
-                        history_drive_details[k] = deque(maxlen=300)
-                    history_drive_details[k].append(v)
+                if details:
+                    avg_drive = int(sum(details.values()) / len(details))
+                else:
+                    avg_drive = temps.get('drive', 0)
+                history_drive.append(avg_drive)
                     
                 last_fan_details_str = fan_rpms
                 last_poll = now
@@ -236,10 +208,10 @@ def main(stdscr):
             win_drive = curses.newwin(graph_h, max_x, 1 + graph_h * 2, 0)
             win_fan = curses.newwin(graph_h, max_x, 1 + graph_h * 3, 0)
             
-            draw_graph(win_cpu, "CPU Temp", history_cpu, graph_h, max_x, curses.color_pair(1))
-            draw_graph(win_gpu, "GPU Temp", history_gpu, graph_h, max_x, curses.color_pair(2))
-            draw_multi_graph(win_drive, "Drive Temp", history_drive_details, graph_h, max_x)
-            draw_graph(win_fan, "Fan Speed (%)", history_fan, graph_h, max_x, curses.color_pair(3), last_fan_details_str)
+            draw_graph(win_cpu, "CPU Temp", history_cpu, graph_h, max_x, curses.color_pair(1), target_val=target_temps.get('cpu'))
+            draw_graph(win_gpu, "GPU Temp", history_gpu, graph_h, max_x, curses.color_pair(2), target_val=target_temps.get('gpu'))
+            draw_graph(win_drive, "Avg Drive Temp", history_drive, graph_h, max_x, curses.color_pair(4), target_val=target_temps.get('drive'))
+            draw_graph(win_fan, "Fan Speed (%)", history_fan, graph_h, max_x, curses.color_pair(3), details_str=last_fan_details_str)
             
             curses.doupdate()
 
