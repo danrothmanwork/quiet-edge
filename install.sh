@@ -78,10 +78,8 @@ case "$ACTION" in
             print_error "Configuration tool not found. Please run full install first."
             exit 1
         fi
-        python3 "${BIN_DIR}/quiet_edge_config.py"
+        "${BIN_DIR}/quiet_edge_config.py"
         if [ $? -eq 0 ]; then
-            print_info "Restarting service to apply changes..."
-            systemctl restart quiet-edge.service
             print_success "Reconfiguration complete!"
         fi
         exit 0
@@ -106,7 +104,7 @@ case "$ACTION" in
         install_file "quiet_edge_config.py" "${BIN_DIR}/quiet_edge_config.py" true
 
         print_info "Starting Interactive Setup Wizard..."
-        python3 "${BIN_DIR}/quiet_edge_config.py"
+        "${BIN_DIR}/quiet_edge_config.py"
         SETUP_EXIT=$?
 
         if [ $SETUP_EXIT -ne 0 ]; then

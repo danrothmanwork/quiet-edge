@@ -1,6 +1,6 @@
 # quiet-edge
 
-**quiet-edge** is a Dell PowerEdge 13G IPMI Fan Controller Utility that uses an intelligent PID controller to dynamically adjust your server's fan speeds. By monitoring the temperatures of your CPU, GPU, and Storage Drives, it ensures your server stays optimally cooled while keeping noise levels to an absolute minimum.
+**quiet-edge** is a Dell ( PowerEdge 13G | iDRAC 8 ) IPMI Fan Controller Utility that uses an intelligent PID controller to dynamically adjust your server's fan speeds. By monitoring the temperatures of your CPU, GPU, and Storage Drives, it ensures your server stays optimally cooled while keeping noise levels to an absolute minimum.
 
 ## Features
 
@@ -16,7 +16,7 @@
 
 ## Prerequisites
 
-- A Dell PowerEdge 13G Server (or similar iDRAC-enabled system).
+- A Dell PowerEdge 13G Server with iDRAC 8 (or similar iDRAC-enabled system).
 - **IPMI over LAN** enabled in your iDRAC settings.
 - A Linux environment with `root` privileges.
 

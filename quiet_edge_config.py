@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os, sys, subprocess, json
 
 def run_cmd(cmd):
@@ -107,3 +108,8 @@ os.makedirs('/etc/quiet-edge', exist_ok=True)
 with open(config_path, 'w') as f:
     json.dump(config, f, indent=2)
 print("\nConfiguration saved!")
+
+# Restart the service if it is already installed to apply changes immediately
+if os.path.exists('/etc/systemd/system/quiet-edge.service'):
+    print("\n>> Restarting quiet-edge service to apply changes...")
+    os.system("systemctl restart quiet-edge.service")
