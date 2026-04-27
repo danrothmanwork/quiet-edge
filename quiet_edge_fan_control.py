@@ -65,6 +65,17 @@ def set_fan_speed(pct):
     hex_speed = hex(pct)
     run_cmd(f"ipmitool raw 0x30 0x30 0x02 0xff {hex_speed}")
 
+def get_fan_rpms():
+    out = run_cmd("ipmitool sdr type fan", check_errors=False)
+    rpms = []
+    for line in out.split('\n'):
+        match = re.search(r'\|\s*(\d+)\s*RPM', line, re.IGNORECASE)
+        if match:
+            rpms.append(int(match.group(1)))
+    if rpms:
+        return f"{sum(rpms) // len(rpms)} RPM avg"
+    return ""
+
 def get_temperatures():
     temps = {'cpu': 0, 'gpu': 0, 'drive': 0}
     
@@ -131,12 +142,14 @@ def main():
     
     poll_interval = config.get('poll_interval_sec', 30)
     min_speed = config.get('min_fan_speed_pct', 20)
+    max_step_up = config.get('max_step_up', 8)
+    max_step_down = config.get('max_step_down', 2)
     target_temps = config.get('target_temps', {})
     
     log(f"Starting quiet-edge PID Service. Polling interval: {poll_interval}s")
     
     # PI Constants
-    Kp_up = 4.0
+    Kp_up = 3.0  # Lowered from 4.0 to reduce aggressive spiking
     Kp_down = 1.0
     Ki = 0.1
     
@@ -192,13 +205,26 @@ def main():
                         
             state['pid_state'] = pid_state
             
-            current_target = max(min_speed, min(100, int(max_requested_speed)))
+            raw_target = max(min_speed, min(100, int(max_requested_speed)))
+            
+            if raw_target > last_speed + max_step_up:
+                current_target = last_speed + max_step_up
+            elif raw_target < last_speed - max_step_down:
+                current_target = last_speed - max_step_down
+            else:
+                current_target = raw_target
             
             log(f"Raw Temps -> CPU:{temps.get('cpu',0)}C GPU:{temps.get('gpu',0)}C Drive:{temps.get('drive',0)}C ({temps.get('drive_details', {})})")
             log(f"Smoothed  -> CPU:{smoothed_temps.get('cpu',0)}C GPU:{smoothed_temps.get('gpu',0)}C Drive:{smoothed_temps.get('drive',0)}C")
             
             if current_target != last_speed:
-                log(f"Adjusting fan speed to {current_target}% (was {last_speed}%) based on PID Targets")
+                action_str = "PID Targets"
+                if current_target < raw_target:
+                    action_str = "Rate Limiter (Ramping Up)"
+                elif current_target > raw_target:
+                    action_str = "Rate Limiter (Ramping Down)"
+                    
+                log(f"Adjusting fan speed to {current_target}% (was {last_speed}%) based on {action_str}")
                 set_fan_speed(current_target)
                 state['last_speed'] = current_target
             else:
