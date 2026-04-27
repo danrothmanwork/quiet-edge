@@ -24,7 +24,11 @@
 
 ## Installation
 
-1. Clone or download this repository to your server.
+1. Clone or download this repository to your server:
+   ```bash
+   git clone https://github.com/danrothmanwork/quiet-edge.git
+   cd quiet-edge
+   ```
 2. Make the installer executable:
    ```bash
    chmod +x install.sh
