@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Dell PowerEdge 13G IPMI Fan Controller Utility
-Executed via cron to maintain server temperatures.
+quiet-edge - Dell PowerEdge 13G IPMI Fan Controller Utility
 """
 
 import subprocess
@@ -12,9 +11,9 @@ import os
 import logging
 from datetime import datetime
 
-CONFIG_PATH = '/etc/idrac_fan_control/config.json'
-STATE_PATH = '/etc/idrac_fan_control/state.json'
-LOG_PATH = '/var/log/idrac_fan_control.log'
+CONFIG_PATH = '/etc/quiet-edge/config.json'
+STATE_PATH = '/etc/quiet-edge/state.json'
+LOG_PATH = '/var/log/quiet-edge.log'
 
 logging.basicConfig(
     filename=LOG_PATH,
@@ -134,7 +133,7 @@ def main():
     min_speed = config.get('min_fan_speed_pct', 20)
     target_temps = config.get('target_temps', {})
     
-    log(f"Starting Thermal Dynamics PID Service. Polling interval: {poll_interval}s")
+    log(f"Starting quiet-edge PID Service. Polling interval: {poll_interval}s")
     
     # PI Constants
     Kp_up = 4.0

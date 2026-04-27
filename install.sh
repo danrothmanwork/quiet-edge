@@ -1,12 +1,12 @@
 #!/bin/bash
-# Thermal Dynamics - Automated Setup
+# quiet-edge - Automated Setup
 # Usage: ./install.sh [install|reconfigure|uninstall]
 
 # --- Configuration ---
 BIN_DIR="/usr/local/bin"
 SYSTEMD_DIR="/etc/systemd/system"
-CONF_DIR="/etc/idrac_fan_control"
-LOG_FILE="/var/log/idrac_fan_control.log"
+CONF_DIR="/etc/quiet-edge"
+LOG_FILE="/var/log/quiet-edge.log"
 
 # --- Colors ---
 GREEN='\033[0;32m'
@@ -48,15 +48,15 @@ ACTION="${1:-install}"
 case "$ACTION" in
     uninstall)
         print_info "Stopping and disabling service..."
-        systemctl stop idrac-fan-control.service 2>/dev/null
-        systemctl disable idrac-fan-control.service 2>/dev/null
-        rm -f "${SYSTEMD_DIR}/idrac-fan-control.service"
+        systemctl stop quiet-edge.service 2>/dev/null
+        systemctl disable quiet-edge.service 2>/dev/null
+        rm -f "${SYSTEMD_DIR}/quiet-edge.service"
         systemctl daemon-reload
         
         print_info "Removing scripts..."
-        rm -f "${BIN_DIR}/idrac_fan_control.py"
-        rm -f "${BIN_DIR}/idrac_monitor.py"
-        rm -f "${BIN_DIR}/idrac_config.py"
+        rm -f "${BIN_DIR}/quiet_edge_fan_control.py"
+        rm -f "${BIN_DIR}/quiet_edge_monitor.py"
+        rm -f "${BIN_DIR}/quiet_edge_config.py"
         
         print_info "Restoring Dell Auto Fan Control..."
         ipmitool raw 0x30 0x30 0x01 0x01 2>/dev/null
@@ -74,14 +74,14 @@ case "$ACTION" in
         ;;
         
     reconfigure)
-        if [ ! -f "${BIN_DIR}/idrac_config.py" ]; then
+        if [ ! -f "${BIN_DIR}/quiet_edge_config.py" ]; then
             print_error "Configuration tool not found. Please run full install first."
             exit 1
         fi
-        python3 "${BIN_DIR}/idrac_config.py"
+        python3 "${BIN_DIR}/quiet_edge_config.py"
         if [ $? -eq 0 ]; then
             print_info "Restarting service to apply changes..."
-            systemctl restart idrac-fan-control.service
+            systemctl restart quiet-edge.service
             print_success "Reconfiguration complete!"
         fi
         exit 0
@@ -103,10 +103,10 @@ case "$ACTION" in
         if ! grep -q "ipmi_si" /etc/modules; then echo "ipmi_si" >> /etc/modules; fi
 
         print_info "Installing Configuration Wizard..."
-        install_file "idrac_config.py" "${BIN_DIR}/idrac_config.py" true
+        install_file "quiet_edge_config.py" "${BIN_DIR}/quiet_edge_config.py" true
 
         print_info "Starting Interactive Setup Wizard..."
-        python3 "${BIN_DIR}/idrac_config.py"
+        python3 "${BIN_DIR}/quiet_edge_config.py"
         SETUP_EXIT=$?
 
         if [ $SETUP_EXIT -ne 0 ]; then
@@ -115,19 +115,19 @@ case "$ACTION" in
         fi
 
         print_info "Installing python utility..."
-        install_file "idrac_fan_control.py" "${BIN_DIR}/idrac_fan_control.py" true
+        install_file "quiet_edge_fan_control.py" "${BIN_DIR}/quiet_edge_fan_control.py" true
 
         print_info "Installing Ncurses Monitor..."
-        install_file "idrac_monitor.py" "${BIN_DIR}/idrac_monitor.py" true
+        install_file "quiet_edge_monitor.py" "${BIN_DIR}/quiet_edge_monitor.py" true
 
         print_info "Setting up System Service..."
-        install_file "idrac-fan-control.service" "${SYSTEMD_DIR}/idrac-fan-control.service" false
+        install_file "quiet-edge.service" "${SYSTEMD_DIR}/quiet-edge.service" false
 
         systemctl daemon-reload
-        systemctl enable --now idrac-fan-control.service
+        systemctl enable --now quiet-edge.service
 
         print_success "Installation complete! Service started."
-        print_info "Monitor status with: systemctl status idrac-fan-control"
+        print_info "Monitor status with: systemctl status quiet-edge"
         exit 0
         ;;
         

@@ -1,10 +1,10 @@
 [Unit]
-Description=Thermal Dynamics iDRAC Fan Controller
+Description=quiet-edge iDRAC Fan Controller
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /usr/local/bin/idrac_fan_control.py
+ExecStart=/usr/bin/python3 /usr/local/bin/quiet_edge_fan_control.py
 Restart=always
 RestartSec=5
 # Failsafe: restore iDRAC dynamic auto control on stop/crash/shutdown

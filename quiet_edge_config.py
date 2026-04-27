@@ -5,7 +5,7 @@ def run_cmd(cmd):
     except: return ""
 
 print("\n" + "="*50)
-print(" Thermal Dynamics - Configuration Wizard ")
+print(" quiet-edge - Configuration Wizard ")
 print("="*50)
 
 print("\n>> Scanning for sensors...")
@@ -31,7 +31,7 @@ print(f"  CPU   Detected : {'Yes' if temps['cpu'] else 'No'}")
 print(f"  GPU   Detected : {'Yes' if temps['gpu'] else 'No'}")
 print(f"  Drive Detected : {'Yes' if temps['drive'] else 'No'}")
 
-config_path = '/etc/idrac_fan_control/config.json'
+config_path = '/etc/quiet-edge/config.json'
 config = {"min_fan_speed_pct": 15, "poll_interval_sec": 30, "target_temps": {}}
 
 if os.path.exists(config_path):
@@ -77,7 +77,7 @@ except (EOFError, KeyboardInterrupt):
     print("\nSetup cancelled.")
     sys.exit(1)
 
-os.makedirs('/etc/idrac_fan_control', exist_ok=True)
+os.makedirs('/etc/quiet-edge', exist_ok=True)
 with open(config_path, 'w') as f:
     json.dump(config, f, indent=2)
 print("\nConfiguration saved!")

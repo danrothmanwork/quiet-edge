@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Thermal Dynamics - Ncurses TUI Monitor
+quiet-edge - Ncurses TUI Monitor
 Shows real-time temperature and fan speed graphs.
 """
 
@@ -11,7 +11,7 @@ import os
 import sys
 from collections import deque
 
-STATE_PATH = '/etc/idrac_fan_control/state.json'
+STATE_PATH = '/etc/quiet-edge/state.json'
 
 def get_state_data():
     temps = {'cpu': 0, 'gpu': 0, 'drive': 0, 'drive_details': {}}
@@ -222,7 +222,7 @@ def main(stdscr):
                 continue
                 
             stdscr.erase()
-            header = f" Thermal Dynamics Monitor | 'q' to quit | Updating from Controller "
+            header = f" quiet-edge Monitor | 'q' to quit | Updating from Controller "
             try:
                 stdscr.addstr(0, (max_x - len(header)) // 2, header, curses.A_BOLD | curses.A_REVERSE)
             except curses.error:
